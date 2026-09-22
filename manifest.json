@@ -2,7 +2,7 @@
   "name": "مذكراتي",
   "short_name": "مذكراتي",
   "description": "تطبيق بسيط لتدوين الملاحظات",
-  "s"start_url": "/notebook-app/",
+  "start_url": "/notebook-app/",
 "scope": "/notebook-app/",
 "id": "/notebook-app/",
   "display": "standalone",
