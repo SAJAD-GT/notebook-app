@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#4a90e2">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <title>مذكراتي</title>
+  <style>
+    /* نفس التنسيقات السابقة */
+    :root { --bg: #f5f5f5; --card: #fff; --text: #222; --primary: #4a90e2; --danger: #e74c3c; }
+    * { box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
+    body { margin: 0; padding: 16px; background: var(--bg); color: var(--text); }
+    h1 { text-align: center; margin: 0 0 16px; font-size: 1.5rem; }
+    #search { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 12px; margin-bottom: 12px; font-size: 1rem; }
+    .note-form { background: var(--card); padding: 12px; border-radius: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); margin-bottom: 16px; }
+    .note-form input, .note-form textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; margin-bottom: 8px; font-size: 1rem; }
+    .note-form textarea { min-height: 100px; resize: vertical; }
+    .note-form button { width: 100%; padding: 12px; background: var(--primary); color: white; border: none; border-radius: 8px; font-size: 1rem; cursor: pointer; }
+    .notes-list { display: flex; flex-direction: column; gap: 12px; }
+    .note { background: var(--card); padding: 12px; border-radius: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); position: relative; }
+    .note h3 { margin: 0 0 8px; font-size: 1.1rem; }
+    .note p { margin: 0 0 8px; white-space: pre-wrap; word-break: break-word; }
+    .note .actions { display: flex; gap: 8px; justify-content: flex-end; }
+    .note button { padding: 6px 10px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; }
+    .edit-btn { background: #f0ad4e; color: white; }
+    .delete-btn { background: var(--danger); color: white; }
+    .empty { text-align: center; color: #888; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <h1>📝 مذكراتي</h1>
+  <input type="text" id="search" placeholder="ابحث في الملاحظات...">
+  <div class="note-form">
+    <input type="text" id="note-title" placeholder="العنوان">
+    <textarea id="note-content" placeholder="اكتب ملاحظتك هنا..."></textarea>
+    <button id="save-btn">حفظ الملاحظة</button>
+  </div>
+  <div class="notes-list" id="notes-list"></div>
+
+  <script>
+    // نفس منطق JavaScript السابق
+    const STORAGE_KEY = 'notebook_notes';
+    let notes = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+    let editId = null;
+
+    const titleInput = document.getElementById('note-title');
+    const contentInput = document.getElementById('note-content');
+    const saveBtn = document.getElementById('save-btn');
+    const notesList = document.getElementById('notes-list');
+    const searchInput = document.getElementById('search');
+
+    function saveNotes() { localStorage.setItem(STORAGE_KEY, JSON.stringify(notes)); }
+    function escapeHtml(text) { const div = document.createElement('div'); div.textContent = text; return div.innerHTML; }
+
+    function renderNotes(filter = '') {
+      const filtered = notes.filter(n => n.title.toLowerCase().includes(filter.toLowerCase()) || n.content.toLowerCase().includes(filter.toLowerCase()));
+      notesList.innerHTML = '';
+      if (filtered.length === 0) { notesList.innerHTML = '<div class="empty">لا توجد ملاحظات</div>'; return; }
+      filtered.forEach(note => {
+        const div = document.createElement('div'); div.className = 'note';
+        div.innerHTML = `<h3>${escapeHtml(note.title) || 'بدون عنوان'}</h3><p>${escapeHtml(note.content)}</p><div class="actions"><button class="edit-btn" data-id="${note.id}">تعديل</button><button class="delete-btn" data-id="${note.id}">حذف</button></div>`;
+        notesList.appendChild(div);
+      });
+      document.querySelectorAll('.edit-btn').forEach(btn => { btn.onclick = () => editNote(btn.dataset.id); });
+      document.querySelectorAll('.delete-btn').forEach(btn => { btn.onclick = () => deleteNote(btn.dataset.id); });
+    }
+
+    function editNote(id) {
+      const note = notes.find(n => n.id === id);
+      if (!note) return;
+      titleInput.value = note.title; contentInput.value = note.content; editId = id;
+      saveBtn.textContent = 'تحديث الملاحظة'; titleInput.focus();
+    }
+
+    function deleteNote(id) {
+      if (!confirm('هل أنت متأكد من حذف هذه الملاحظة؟')) return;
+      notes = notes.filter(n => n.id !== id); saveNotes(); renderNotes(searchInput.value);
+      if (editId === id) { editId = null; titleInput.value = ''; contentInput.value = ''; saveBtn.textContent = 'حفظ الملاحظة'; }
+    }
+
+    saveBtn.onclick = () => {
+      const title = titleInput.value.trim(); const content = contentInput.value.trim();
+      if (!title && !content) return alert('اكتب شيئاً أولاً');
+      if (editId) {
+        const note = notes.find(n => n.id === editId);
+        if (note) { note.title = title; note.content = content; note.updatedAt = Date.now(); }
+        editId = null; saveBtn.textContent = 'حفظ الملاحظة';
+      } else {
+        notes.unshift({ id: Date.now().toString(), title, content, createdAt: Date.now(), updatedAt: Date.now() });
+      }
+      titleInput.value = ''; contentInput.value = ''; saveNotes(); renderNotes(searchInput.value);
+    };
+
+    searchInput.oninput = (e) => renderNotes(e.target.value);
+    renderNotes();
+
+    // تسجيل Service Worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js').then(() => console.log('SW registered')).catch(err => console.log('SW error', err));
+    }
+  </script>
+</body>
+</html>
